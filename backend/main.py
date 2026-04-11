@@ -9,12 +9,19 @@ from routers.webhook import router as webhook_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    scheduler.start()
-    await load_pending_reminders()
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        scheduler.start()
+        await load_pending_reminders()
+    except Exception as e:
+        import logging
+        logging.warning(f"Startup warning (DB/scheduler): {e}")
     yield
-    scheduler.shutdown()
+    try:
+        scheduler.shutdown()
+    except Exception:
+        pass
 
 
 app = FastAPI(lifespan=lifespan)
