@@ -20,9 +20,9 @@ Return ONLY a valid JSON object with these fields:
 
 Rules:
 - Resolve relative dates ("amanhã", "semana que vem", "sexta") relative to current_datetime
-- Timezone: America/Sao_Paulo (UTC-3)
+- IMPORTANT: The user is in Brazil (America/Sao_Paulo, UTC-3). All datetime fields MUST include the timezone offset -03:00. Example: if user says "às 20h", return "2026-04-12T20:00:00-03:00". Never return a datetime without a timezone offset.
 - If time is not specified for a create intent, set clarification_needed=true
-- Default remind_at = datetime - 30 minutes
+- Default remind_at = datetime - 30 minutes (keep same -03:00 offset)
 - Return ONLY valid JSON, no explanation, no markdown"""
 
 

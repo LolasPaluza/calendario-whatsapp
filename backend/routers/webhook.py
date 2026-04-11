@@ -1,4 +1,15 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
+from zoneinfo import ZoneInfo
+
+BRT = ZoneInfo("America/Sao_Paulo")
+
+
+def parse_dt(value: str) -> datetime:
+    """Parse ISO datetime; if naive (no offset), assume America/Sao_Paulo."""
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=BRT)
+    return dt.astimezone(UTC)
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,8 +62,8 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
     intent = parsed.get("intent")
 
     if intent == "create":
-        event_dt = datetime.fromisoformat(parsed["datetime"])
-        remind_at = datetime.fromisoformat(parsed["remind_at"])
+        event_dt = parse_dt(parsed["datetime"])
+        remind_at = parse_dt(parsed["remind_at"])
         event = await events_service.create_event(db, EventCreate(
             title=parsed["title"],
             event_datetime=event_dt,
@@ -97,13 +108,13 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
             new_val = parsed.get("new_value")
             update_data: dict = {}
             if field == "datetime":
-                new_dt = datetime.fromisoformat(new_val)
+                new_dt = parse_dt(new_val)
                 update_data["event_datetime"] = new_dt
                 update_data["remind_at"] = new_dt - timedelta(minutes=30)
             elif field == "title":
                 update_data["title"] = new_val
             elif field == "remind_at":
-                update_data["remind_at"] = datetime.fromisoformat(new_val)
+                update_data["remind_at"] = parse_dt(new_val)
             updated = await events_service.update_event(db, matched.id, EventUpdate(**update_data))
             if updated:
                 cancel_reminder(matched.id)
