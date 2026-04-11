@@ -31,7 +31,7 @@ async def parse_message(message: str, current_datetime: datetime) -> dict:
     prompt = f"{SYSTEM_PROMPT}\n\n{user_content}"
 
     response = await client.aio.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-1.5-flash",
         contents=prompt,
     )
     text = response.text.strip()
