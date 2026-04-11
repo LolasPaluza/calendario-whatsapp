@@ -1,10 +1,9 @@
 import json
 from datetime import datetime
-import google.generativeai as genai
+from google import genai
 from config import settings
 
-genai.configure(api_key=settings.gemini_api_key)
-model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client(api_key=settings.gemini_api_key)
 
 SYSTEM_PROMPT = """You are a calendar assistant. Parse the user's WhatsApp message and extract event information.
 
@@ -31,7 +30,10 @@ async def parse_message(message: str, current_datetime: datetime) -> dict:
     user_content = f"current_datetime: {current_datetime.isoformat()}\nmessage: {message}"
     prompt = f"{SYSTEM_PROMPT}\n\n{user_content}"
 
-    response = await model.generate_content_async(prompt)
+    response = await client.aio.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt,
+    )
     text = response.text.strip()
 
     if text.startswith("```"):
