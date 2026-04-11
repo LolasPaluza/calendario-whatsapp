@@ -36,7 +36,13 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
         return {"status": "ok"}
 
     now = datetime.now(timezone.utc)
-    parsed = await nlp.parse_message(text, now)
+    try:
+        parsed = await nlp.parse_message(text, now)
+    except Exception as e:
+        import logging
+        logging.error(f"NLP error: {type(e).__name__}: {e}")
+        await whatsapp.send_message(from_number, f"Erro interno ao processar mensagem: {type(e).__name__}")
+        return {"status": "error", "detail": str(e)}
 
     if parsed.get("clarification_needed"):
         await whatsapp.send_message(from_number, parsed["clarification_question"])
