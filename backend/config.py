@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     database_url: str
-    anthropic_api_key: str
+    gemini_api_key: str
     whatsapp_phone_number_id: str
     whatsapp_access_token: str
     webhook_verify_token: str

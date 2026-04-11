@@ -1,9 +1,10 @@
 import json
 from datetime import datetime
-from anthropic import AsyncAnthropic
+import google.generativeai as genai
 from config import settings
 
-client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+genai.configure(api_key=settings.gemini_api_key)
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 SYSTEM_PROMPT = """You are a calendar assistant. Parse the user's WhatsApp message and extract event information.
 
@@ -28,12 +29,15 @@ Rules:
 
 async def parse_message(message: str, current_datetime: datetime) -> dict:
     user_content = f"current_datetime: {current_datetime.isoformat()}\nmessage: {message}"
+    prompt = f"{SYSTEM_PROMPT}\n\n{user_content}"
 
-    response = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=512,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_content}],
-    )
+    response = await model.generate_content_async(prompt)
+    text = response.text.strip()
 
-    return json.loads(response.content[0].text)
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+
+    return json.loads(text)
