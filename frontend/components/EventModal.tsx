@@ -20,9 +20,14 @@ const REMIND_OPTIONS = [
 export default function EventModal({ event, onClose, onSaved }: Props) {
   const [title, setTitle] = useState(event?.title ?? '')
   const [description, setDescription] = useState(event?.description ?? '')
-  const [datetime, setDatetime] = useState(
-    event ? event.event_datetime.slice(0, 16) : ''
-  )
+  const [datetime, setDatetime] = useState(() => {
+    if (!event) return ''
+    const dt = new Date(event.event_datetime)
+    // Convert UTC to local time so datetime-local input shows the correct local time
+    return new Date(dt.getTime() - dt.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16)
+  })
   const [remindMinutes, setRemindMinutes] = useState(30)
   const [loading, setLoading] = useState(false)
 
