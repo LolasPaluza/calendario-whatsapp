@@ -28,7 +28,16 @@ export default function EventModal({ event, onClose, onSaved }: Props) {
       .toISOString()
       .slice(0, 16)
   })
-  const [remindMinutes, setRemindMinutes] = useState(30)
+  const [remindMinutes, setRemindMinutes] = useState(() => {
+    if (!event) return 30
+    const eventDt = new Date(event.event_datetime)
+    const remindDt = new Date(event.remind_at)
+    const diff = Math.round((eventDt.getTime() - remindDt.getTime()) / 60000)
+    const closest = REMIND_OPTIONS.reduce((prev, curr) =>
+      Math.abs(curr.minutes - diff) < Math.abs(prev.minutes - diff) ? curr : prev
+    )
+    return closest.minutes
+  })
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
