@@ -124,8 +124,16 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
             await whatsapp.send_message(from_number, "Evento não encontrado.")
 
     elif intent in ("query", "unknown"):
-        upcoming = await events_service.list_upcoming_events(db)
-        response_text = await nlp.chat_response(text, upcoming, now)
-        await whatsapp.send_message(from_number, response_text)
+        try:
+            upcoming = await events_service.list_upcoming_events(db)
+            response_text = await nlp.chat_response(text, upcoming, now)
+            await whatsapp.send_message(from_number, response_text)
+        except Exception as e:
+            import logging
+            logging.error(f"Chat response error: {type(e).__name__}: {e}")
+            await whatsapp.send_message(
+                from_number,
+                "Não consegui processar sua pergunta agora. Tente perguntar de outra forma ou use comandos como 'quais meus eventos?' ou 'agendar reunião amanhã às 15h'."
+            )
 
     return {"status": "ok"}
