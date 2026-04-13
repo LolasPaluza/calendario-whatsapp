@@ -123,10 +123,9 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
         else:
             await whatsapp.send_message(from_number, "Evento não encontrado.")
 
-    else:
-        await whatsapp.send_message(
-            from_number,
-            "Não entendi. Exemplos:\n• 'reunião amanhã às 15h'\n• 'quais meus eventos?'\n• 'cancela a reunião de amanhã'"
-        )
+    elif intent in ("query", "unknown"):
+        upcoming = await events_service.list_upcoming_events(db)
+        response_text = await nlp.chat_response(text, upcoming, now)
+        await whatsapp.send_message(from_number, response_text)
 
     return {"status": "ok"}

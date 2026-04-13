@@ -1,14 +1,16 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from google import genai
 from config import settings
 
 client = genai.Client(api_key=settings.gemini_api_key)
 
+BRT = timezone(timedelta(hours=-3))
+
 SYSTEM_PROMPT = """You are a calendar assistant. Parse the user's WhatsApp message and extract event information.
 
 Return ONLY a valid JSON object with these fields:
-- intent: "create" | "list" | "cancel" | "edit" | "unknown"
+- intent: "create" | "list" | "cancel" | "edit" | "query" | "unknown"
 - title: string or null
 - datetime: ISO 8601 string or null (event date/time)
 - remind_at: ISO 8601 string or null (when to remind, default 30min before datetime)
@@ -19,6 +21,8 @@ Return ONLY a valid JSON object with these fields:
 - clarification_question: string or null
 
 Rules:
+- Use intent "query" when the user asks about availability, free time, or what they have scheduled (ex: "tenho tempo na sexta?", "tenho 1 hora sobrando na quarta", "o que tenho amanhã?")
+- Use intent "list" only when user explicitly asks to list/show all events
 - Resolve relative dates ("amanhã", "semana que vem", "sexta") relative to current_datetime
 - IMPORTANT: The user is in Brazil (America/Sao_Paulo, UTC-3). All datetime fields MUST include the timezone offset -03:00. Example: if user says "às 20h", return "2026-04-12T20:00:00-03:00". Never return a datetime without a timezone offset.
 - If time is not specified for a create intent, set clarification_needed=true
@@ -43,3 +47,43 @@ async def parse_message(message: str, current_datetime: datetime) -> dict:
         text = text.strip()
 
     return json.loads(text)
+
+
+def _format_events_for_context(events: list, now: datetime) -> str:
+    if not events:
+        return "Nenhum evento futuro na agenda."
+    lines = []
+    for e in events:
+        dt_brt = e.event_datetime.astimezone(BRT)
+        lines.append(f"• {e.title} — {dt_brt.strftime('%A, %d/%m/%Y às %H:%M')}")
+    return "\n".join(lines)
+
+
+async def chat_response(message: str, events: list, current_datetime: datetime) -> str:
+    """Generate a conversational response using calendar context."""
+    now_brt = current_datetime.astimezone(BRT)
+    events_context = _format_events_for_context(events, current_datetime)
+
+    prompt = f"""Você é um assistente de agenda pessoal amigável e inteligente. Responda em português brasileiro de forma conversacional e natural.
+
+Data/hora atual: {now_brt.strftime('%A, %d/%m/%Y às %H:%M')} (horário de Brasília)
+
+Eventos futuros do usuário:
+{events_context}
+
+Mensagem do usuário: {message}
+
+Instruções:
+- Responda de forma natural, útil e concisa
+- Se o usuário perguntar sobre disponibilidade (ex: "tenho 1 hora sobrando na quarta"), verifique os eventos daquele dia e responda se há ou não esse espaço livre
+- Se há tempo livre e o usuário mencionou disponibilidade, pergunte se quer agendar algo nesse horário
+- Se não há tempo livre, explique o que está agendado naquele período de forma clara
+- Use os eventos listados acima como base para suas respostas
+- Se a pergunta não for sobre agenda, redirecione gentilmente dizendo que pode ajudar com eventos e lembretes
+- Seja direto e amigável, como um assistente pessoal"""
+
+    response = await client.aio.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
+    return response.text.strip()

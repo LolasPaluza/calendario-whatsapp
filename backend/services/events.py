@@ -44,6 +44,18 @@ async def update_event(db: AsyncSession, event_id: uuid.UUID, data: EventUpdate)
     return event
 
 
+async def list_upcoming_events(db: AsyncSession) -> list[Event]:
+    """Return all non-cancelled future events (regardless of reminder status)."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        select(Event)
+        .where(Event.event_datetime > now, Event.status != "cancelled")
+        .order_by(Event.event_datetime)
+    )
+    return list(result.scalars().all())
+
+
 async def cancel_event(db: AsyncSession, event_id: uuid.UUID) -> Event | None:
     event = await get_event(db, event_id)
     if not event:
