@@ -22,6 +22,9 @@ from scheduler import schedule_reminder, cancel_reminder
 
 router = APIRouter()
 
+# In-memory deduplication: ignore repeated webhook deliveries for the same message
+_processed_message_ids: set[str] = set()
+
 
 @router.get("/webhook", response_class=PlainTextResponse)
 async def verify_webhook(request: Request):
@@ -41,10 +44,17 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         value = body["entry"][0]["changes"][0]["value"]
         msg = value["messages"][0]
+        msg_id = msg.get("id", "")
         from_number = msg["from"]
         text = msg["text"]["body"]
     except (KeyError, IndexError):
         return {"status": "ok"}
+
+    if msg_id in _processed_message_ids:
+        return {"status": "ok"}
+    _processed_message_ids.add(msg_id)
+    if len(_processed_message_ids) > 1000:
+        _processed_message_ids.clear()
 
     now = datetime.now(timezone.utc)
     try:
