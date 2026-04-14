@@ -84,8 +84,8 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
         await whatsapp.send_message(
             from_number,
             f"Evento criado: {event.title}\n"
-            f"Data: {event_dt.strftime('%d/%m/%Y às %H:%M')}\n"
-            f"Lembrete: {remind_at.strftime('%d/%m/%Y às %H:%M')}",
+            f"Data: {event_dt.astimezone(BRT).strftime('%d/%m/%Y às %H:%M')}\n"
+            f"Lembrete: {remind_at.astimezone(BRT).strftime('%d/%m/%Y às %H:%M')}",
         )
 
     elif intent == "list":
@@ -95,7 +95,8 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
         else:
             lines = ["*Seus próximos eventos:*"]
             for e in events[:10]:
-                lines.append(f"• {e.title} — {e.event_datetime.strftime('%d/%m às %H:%M')}")
+                dt_brt = e.event_datetime.astimezone(BRT)
+                lines.append(f"• {e.title} — {dt_brt.strftime('%d/%m às %H:%M')}")
             await whatsapp.send_message(from_number, "\n".join(lines))
 
     elif intent == "cancel":

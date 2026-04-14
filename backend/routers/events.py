@@ -17,7 +17,7 @@ def require_api_key(x_api_key: str = Header(default="")):
 
 @router.get("/events", response_model=list[EventOut], dependencies=[Depends(require_api_key)])
 async def list_events(db: AsyncSession = Depends(get_db)):
-    return await events_service.list_events(db)
+    return await events_service.list_upcoming_events(db)
 
 
 @router.post("/events", response_model=EventOut, status_code=201, dependencies=[Depends(require_api_key)])
