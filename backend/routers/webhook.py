@@ -37,7 +37,7 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
 
     msg_id = payload.get("MessageSid")
     from_field = payload.get("From", "")
-    phone = from_field.replace("whatsapp:", "")
+    phone = from_field.replace("whatsapp:", "").lstrip("+")
     text = payload.get("Body")
 
     if not msg_id or not phone or not text:

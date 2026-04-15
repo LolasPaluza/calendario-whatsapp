@@ -10,7 +10,7 @@ async def send_message(to: str, text: str) -> None:
             auth=(settings.twilio_account_sid, settings.twilio_auth_token),
             data={
                 "From": settings.twilio_from_number,
-                "To": f"whatsapp:{to}",
+                "To": f"whatsapp:+{to}",
                 "Body": text,
             },
             timeout=10.0,
