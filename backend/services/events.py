@@ -23,7 +23,7 @@ async def create_event(db: AsyncSession, data: EventCreate) -> Event:
 
 async def list_events(db: AsyncSession, user_phone: str | None = None, status: str = "pending") -> list[Event]:
     query = select(Event).where(Event.status == status)
-    if user_phone:
+    if user_phone is not None:
         query = query.where(Event.user_phone == user_phone)
     result = await db.execute(query.order_by(Event.event_datetime))
     return list(result.scalars().all())
@@ -53,7 +53,7 @@ async def list_upcoming_events(db: AsyncSession, user_phone: str | None = None) 
         select(Event)
         .where(Event.event_datetime > now, Event.status != "cancelled")
     )
-    if user_phone:
+    if user_phone is not None:
         query = query.where(Event.user_phone == user_phone)
     result = await db.execute(query.order_by(Event.event_datetime))
     return list(result.scalars().all())

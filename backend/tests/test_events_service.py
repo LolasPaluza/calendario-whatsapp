@@ -76,6 +76,9 @@ async def test_list_upcoming_isolated_by_phone(db):
     await create_event(db, EventCreate(title="Futuro B", event_datetime=make_dt(2), user_phone="phone_b"))
 
     upcoming_a = await list_upcoming_events(db, user_phone="phone_a")
+    upcoming_b = await list_upcoming_events(db, user_phone="phone_b")
 
     assert len(upcoming_a) == 1
     assert upcoming_a[0].title == "Futuro A"
+    assert len(upcoming_b) == 1
+    assert upcoming_b[0].title == "Futuro B"
