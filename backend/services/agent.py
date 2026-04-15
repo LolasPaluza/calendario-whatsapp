@@ -90,21 +90,22 @@ class CalendarAgent:
                     tools=[TOOL_DECLARATIONS],
                 ),
             )
+
+            part = response.candidates[0].content.parts[0]
+
+            if getattr(part, "function_call", None):
+                fc = part.function_call
+                result = await self._execute_tool(fc.name, dict(fc.args), phone, now, db)
+                await self._save_turn(phone, text, result, db)
+                return result
+
+            reply = response.text.strip()
+            await self._save_turn(phone, text, reply, db)
+            return reply
+
         except Exception as e:
             logger.error(f"Gemini error: {e}")
             return "Desculpe, tive um problema técnico. Tente novamente em instantes."
-
-        part = response.candidates[0].content.parts[0]
-
-        if getattr(part, "function_call", None):
-            fc = part.function_call
-            result = await self._execute_tool(fc.name, dict(fc.args), phone, now, db)
-            await self._save_turn(phone, text, result, db)
-            return result
-
-        reply = response.text.strip()
-        await self._save_turn(phone, text, reply, db)
-        return reply
 
     async def _load_history(self, phone: str, db: AsyncSession) -> list[ConversationMessage]:
         result = await db.execute(

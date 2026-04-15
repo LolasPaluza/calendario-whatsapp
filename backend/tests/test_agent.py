@@ -52,8 +52,10 @@ async def test_agent_tool_create_event(db):
     from datetime import timedelta
     agent = CalendarAgent()
 
+    from zoneinfo import ZoneInfo
+    BRT = ZoneInfo("America/Sao_Paulo")
     now = datetime.now(timezone.utc)
-    future_iso = (now + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%S-03:00")
+    future_iso = (now + timedelta(hours=3)).astimezone(BRT).strftime("%Y-%m-%dT%H:%M:%S%z")
     mock_response = _make_gemini_tool_response("create_event", {
         "title": "Reunião",
         "datetime_iso": future_iso,
@@ -111,10 +113,7 @@ async def test_agent_loads_history_in_context(db):
         mock_generate.return_value = mock_response
         await agent.run(phone="5511999", text="nova mensagem", db=db)
 
-    call_args = mock_generate.call_args
-    contents = call_args.kwargs.get("contents") or (call_args.args[1] if len(call_args.args) > 1 else None)
-    if contents is None:
-        contents = call_args.kwargs["contents"]
+    contents = mock_generate.call_args.kwargs["contents"]
     # Deve ter pelo menos 3 itens: 2 de histórico + 1 atual
     assert len(contents) >= 3
 
