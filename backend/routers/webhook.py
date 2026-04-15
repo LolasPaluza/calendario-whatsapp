@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import parse_qs
 from fastapi import APIRouter, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
@@ -21,11 +22,12 @@ async def webhook_log():
 @router.post("/webhook")
 async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
     try:
-        form = await request.form()
-        payload = dict(form)
+        raw = await request.body()
+        parsed = parse_qs(raw.decode("utf-8"), keep_blank_values=True)
+        payload = {k: v[0] for k, v in parsed.items()}
     except Exception as e:
-        logger.error(f"Form parse error: {e}")
-        _recent_payloads.append({"error": f"form_parse: {e}"})
+        logger.error(f"Body parse error: {e}")
+        _recent_payloads.append({"error": f"body_parse: {e}"})
         return {"status": "ok"}
 
     _recent_payloads.append(payload)
@@ -33,10 +35,10 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
         _recent_payloads.pop(0)
     logger.info(f"Webhook received: {payload}")
 
-    msg_id = form.get("MessageSid")
-    from_field = form.get("From", "")
+    msg_id = payload.get("MessageSid")
+    from_field = payload.get("From", "")
     phone = from_field.replace("whatsapp:", "")
-    text = form.get("Body")
+    text = payload.get("Body")
 
     if not msg_id or not phone or not text:
         return {"status": "ok"}
