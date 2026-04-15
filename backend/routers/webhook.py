@@ -20,8 +20,14 @@ async def webhook_log():
 
 @router.post("/webhook")
 async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
-    form = await request.form()
-    payload = dict(form)
+    try:
+        form = await request.form()
+        payload = dict(form)
+    except Exception as e:
+        logger.error(f"Form parse error: {e}")
+        _recent_payloads.append({"error": f"form_parse: {e}"})
+        return {"status": "ok"}
+
     _recent_payloads.append(payload)
     if len(_recent_payloads) > 20:
         _recent_payloads.pop(0)
@@ -41,6 +47,16 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
     if len(_processed_message_ids) > 1000:
         _processed_message_ids.clear()
 
-    reply = await _agent.run(phone=phone, text=text, db=db)
-    await whatsapp.send_message(phone, reply)
+    try:
+        reply = await _agent.run(phone=phone, text=text, db=db)
+    except Exception as e:
+        logger.error(f"Agent error: {e}")
+        reply = "Desculpe, tive um problema técnico. Tente novamente."
+
+    try:
+        await whatsapp.send_message(phone, reply)
+    except Exception as e:
+        logger.error(f"Twilio send error: {e}")
+        _recent_payloads.append({"send_error": str(e)})
+
     return {"status": "ok"}
