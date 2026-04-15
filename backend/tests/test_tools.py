@@ -96,3 +96,22 @@ async def test_tools_edit_event_title(db):
 
     assert "Consulta Médica" in result
     assert "atualizado" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_tools_edit_does_not_affect_other_user(db):
+    from services.tools import edit_event as tool_edit
+    now = datetime.now(timezone.utc)
+    await create_event(db, EventCreate(title="Reunião", event_datetime=make_dt(1), user_phone="phone_b"))
+
+    with patch("services.tools.cancel_reminder"), patch("services.tools.schedule_reminder"):
+        result = await tool_edit(
+            event_reference="reunião",
+            field="title",
+            new_value="Outro Nome",
+            user_phone="phone_a",
+            now=now,
+            db=db,
+        )
+
+    assert "Não encontrei" in result

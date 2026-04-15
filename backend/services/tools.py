@@ -107,6 +107,7 @@ async def edit_event(
     if not updated:
         return "Não foi possível atualizar o evento."
 
-    cancel_reminder(matched.id)
-    schedule_reminder(updated.id, updated.remind_at)
+    if "event_datetime" in update_data or "remind_at" in update_data:
+        cancel_reminder(matched.id)
+        schedule_reminder(updated.id, updated.remind_at)
     return f"Evento atualizado: *{updated.title}*"
