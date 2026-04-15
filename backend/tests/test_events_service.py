@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timezone, timedelta
-from services.events import create_event, list_events, get_event, update_event, cancel_event
+from services.events import create_event, list_events, list_upcoming_events, get_event, update_event, cancel_event
 from schemas import EventCreate, EventUpdate
 
 
@@ -52,3 +52,33 @@ async def test_get_event_not_found(db):
     import uuid
     result = await get_event(db, uuid.uuid4())
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_list_events_isolated_by_phone(db):
+    """Usuário A não deve ver eventos do usuário B."""
+    await create_event(db, EventCreate(title="Evento A", event_datetime=make_dt(1), user_phone="phone_a"))
+    await create_event(db, EventCreate(title="Evento B", event_datetime=make_dt(2), user_phone="phone_b"))
+
+    events_a = await list_events(db, user_phone="phone_a")
+    events_b = await list_events(db, user_phone="phone_b")
+
+    assert len(events_a) == 1
+    assert events_a[0].title == "Evento A"
+    assert len(events_b) == 1
+    assert events_b[0].title == "Evento B"
+
+
+@pytest.mark.asyncio
+async def test_list_upcoming_isolated_by_phone(db):
+    """list_upcoming_events filtra por phone."""
+    await create_event(db, EventCreate(title="Futuro A", event_datetime=make_dt(1), user_phone="phone_a"))
+    await create_event(db, EventCreate(title="Futuro B", event_datetime=make_dt(2), user_phone="phone_b"))
+
+    upcoming_a = await list_upcoming_events(db, user_phone="phone_a")
+    upcoming_b = await list_upcoming_events(db, user_phone="phone_b")
+
+    assert len(upcoming_a) == 1
+    assert upcoming_a[0].title == "Futuro A"
+    assert len(upcoming_b) == 1
+    assert upcoming_b[0].title == "Futuro B"

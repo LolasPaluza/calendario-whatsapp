@@ -25,24 +25,42 @@ async def test_webhook_verification_wrong_token(app_client_no_auth):
 
 
 @pytest.mark.asyncio
-async def test_webhook_create_event(app_client_no_auth):
-    future = (datetime.now(timezone.utc) + timedelta(hours=3)).isoformat()
-    remind = (datetime.now(timezone.utc) + timedelta(hours=2, minutes=30)).isoformat()
-
-    parsed = {
-        "intent": "create", "title": "Reunião", "datetime": future,
-        "remind_at": remind, "event_reference": None, "field_to_edit": None,
-        "new_value": None, "clarification_needed": False, "clarification_question": None
-    }
-
-    with patch("routers.webhook.nlp.parse_message", new_callable=AsyncMock, return_value=parsed), \
-         patch("routers.webhook.whatsapp.send_message", new_callable=AsyncMock), \
-         patch("routers.webhook.schedule_reminder"):
+async def test_webhook_dispatches_to_agent(app_client_no_auth):
+    mock_agent = AsyncMock()
+    mock_agent.run = AsyncMock(return_value="Evento criado: *Reunião*")
+    with patch("routers.webhook._agent", mock_agent), \
+         patch("routers.webhook.whatsapp.send_message", new_callable=AsyncMock):
 
         payload = {
             "entry": [{"changes": [{"value": {
-                "messages": [{"from": "5511999999999", "text": {"body": "reunião amanhã às 15h"}}]
+                "messages": [{"id": "msg_001", "from": "5511999999999", "text": {"body": "reunião amanhã às 15h"}}]
             }}]}]
         }
         response = await app_client_no_auth.post("/webhook", json=payload)
-    assert response.status_code == 200
+
+        assert response.status_code == 200
+        mock_agent.run.assert_called_once()
+        call_kwargs = mock_agent.run.call_args.kwargs
+        assert call_kwargs["phone"] == "5511999999999"
+        assert call_kwargs["text"] == "reunião amanhã às 15h"
+        assert "db" in call_kwargs
+
+
+@pytest.mark.asyncio
+async def test_webhook_deduplicates_same_message_id(app_client_no_auth):
+    """Same msg_id sent twice should only dispatch agent once."""
+    mock_agent = AsyncMock()
+    mock_agent.run = AsyncMock(return_value="ok")
+    with patch("routers.webhook._agent", mock_agent), \
+         patch("routers.webhook.whatsapp.send_message", new_callable=AsyncMock):
+
+        payload = {
+            "entry": [{"changes": [{"value": {
+                "messages": [{"id": "dup_msg_002", "from": "5511999999999", "text": {"body": "oi"}}]
+            }}]}]
+        }
+
+        await app_client_no_auth.post("/webhook", json=payload)
+        await app_client_no_auth.post("/webhook", json=payload)
+
+    assert mock_agent.run.call_count == 1

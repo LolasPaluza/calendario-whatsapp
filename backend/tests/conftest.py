@@ -1,7 +1,7 @@
 import os
 # Set env vars before any app imports
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test.db")
-os.environ.setdefault("ANTHROPIC_API_KEY", "test")
+os.environ.setdefault("GEMINI_API_KEY", "test")
 os.environ.setdefault("WHATSAPP_PHONE_NUMBER_ID", "123")
 os.environ.setdefault("WHATSAPP_ACCESS_TOKEN", "test")
 os.environ.setdefault("WEBHOOK_VERIFY_TOKEN", "test_key")

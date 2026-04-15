@@ -21,10 +21,11 @@ async def create_event(db: AsyncSession, data: EventCreate) -> Event:
     return event
 
 
-async def list_events(db: AsyncSession, status: str = "pending") -> list[Event]:
-    result = await db.execute(
-        select(Event).where(Event.status == status).order_by(Event.event_datetime)
-    )
+async def list_events(db: AsyncSession, user_phone: str | None = None, status: str = "pending") -> list[Event]:
+    query = select(Event).where(Event.status == status)
+    if user_phone is not None:
+        query = query.where(Event.user_phone == user_phone)
+    result = await db.execute(query.order_by(Event.event_datetime))
     return list(result.scalars().all())
 
 
@@ -44,15 +45,17 @@ async def update_event(db: AsyncSession, event_id: uuid.UUID, data: EventUpdate)
     return event
 
 
-async def list_upcoming_events(db: AsyncSession) -> list[Event]:
+async def list_upcoming_events(db: AsyncSession, user_phone: str | None = None) -> list[Event]:
     """Return all non-cancelled future events (regardless of reminder status)."""
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
-    result = await db.execute(
+    query = (
         select(Event)
         .where(Event.event_datetime > now, Event.status != "cancelled")
-        .order_by(Event.event_datetime)
     )
+    if user_phone is not None:
+        query = query.where(Event.user_phone == user_phone)
+    result = await db.execute(query.order_by(Event.event_datetime))
     return list(result.scalars().all())
 
 
