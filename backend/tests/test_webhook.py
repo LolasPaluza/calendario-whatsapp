@@ -45,3 +45,24 @@ async def test_webhook_dispatches_to_agent(app_client_no_auth):
         assert call_kwargs["phone"] == "5511999999999"
         assert call_kwargs["text"] == "reunião amanhã às 15h"
         assert "db" in call_kwargs
+
+
+@pytest.mark.asyncio
+async def test_webhook_deduplicates_same_message_id(app_client_no_auth):
+    """Same msg_id sent twice should only dispatch agent once."""
+    with patch("routers.webhook.CalendarAgent") as MockAgent, \
+         patch("routers.webhook.whatsapp.send_message", new_callable=AsyncMock):
+
+        mock_instance = MockAgent.return_value
+        mock_instance.run = AsyncMock(return_value="ok")
+
+        payload = {
+            "entry": [{"changes": [{"value": {
+                "messages": [{"id": "dup_msg_001", "from": "5511999999999", "text": {"body": "oi"}}]
+            }}]}]
+        }
+
+        await app_client_no_auth.post("/webhook", json=payload)
+        await app_client_no_auth.post("/webhook", json=payload)
+
+    assert mock_instance.run.call_count == 1

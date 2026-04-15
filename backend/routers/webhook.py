@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from config import settings
@@ -11,19 +12,18 @@ _processed_message_ids: set[str] = set()
 
 
 def _extract(body: dict) -> tuple[str | None, str | None, str | None]:
-    """Extrai (msg_id, phone, text) do payload Meta. Retorna (None, None, None) se inválido."""
+    """Extract (msg_id, phone, text) from Meta payload. Returns (None, None, None) if invalid."""
     try:
         value = body["entry"][0]["changes"][0]["value"]
         msg = value["messages"][0]
-        return msg.get("id", ""), msg["from"], msg["text"]["body"]
+        msg_id = msg.get("id") or None
+        return msg_id, msg["from"], msg["text"]["body"]
     except (KeyError, IndexError):
         return None, None, None
 
 
 @router.get("/webhook")
 async def verify_webhook(request: Request):
-    from fastapi.responses import PlainTextResponse
-    from fastapi import HTTPException
     params = request.query_params
     if (
         params.get("hub.mode") == "subscribe"
@@ -38,7 +38,7 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
     body = await request.json()
     msg_id, phone, text = _extract(body)
 
-    if not phone or not text:
+    if not msg_id or not phone or not text:
         return {"status": "ok"}
 
     if msg_id in _processed_message_ids:
