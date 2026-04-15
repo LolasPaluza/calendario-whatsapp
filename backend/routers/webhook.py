@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,9 +8,11 @@ from services.agent import CalendarAgent
 from services import whatsapp
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _processed_message_ids: set[str] = set()
 _agent = CalendarAgent()
+_recent_payloads: list[dict] = []
 
 
 def _extract(body: dict) -> tuple[str | None, str | None, str | None]:
@@ -34,9 +37,18 @@ async def verify_webhook(request: Request):
     raise HTTPException(status_code=403, detail="Forbidden")
 
 
+@router.get("/debug/webhook-log")
+async def webhook_log():
+    return {"recent_payloads": _recent_payloads[-10:]}
+
+
 @router.post("/webhook")
 async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
     body = await request.json()
+    _recent_payloads.append(body)
+    if len(_recent_payloads) > 20:
+        _recent_payloads.pop(0)
+    logger.info(f"Webhook received: {body}")
     msg_id, phone, text = _extract(body)
 
     if not msg_id or not phone or not text:
