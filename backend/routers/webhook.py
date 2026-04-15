@@ -1,9 +1,7 @@
 import logging
-from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
-from config import settings
 from services.agent import CalendarAgent
 from services import whatsapp
 
@@ -15,28 +13,6 @@ _agent = CalendarAgent()
 _recent_payloads: list[dict] = []
 
 
-def _extract(body: dict) -> tuple[str | None, str | None, str | None]:
-    """Extract (msg_id, phone, text) from Meta payload. Returns (None, None, None) if invalid."""
-    try:
-        value = body["entry"][0]["changes"][0]["value"]
-        msg = value["messages"][0]
-        msg_id = msg.get("id") or None
-        return msg_id, msg["from"], msg["text"]["body"]
-    except (KeyError, IndexError):
-        return None, None, None
-
-
-@router.get("/webhook")
-async def verify_webhook(request: Request):
-    params = request.query_params
-    if (
-        params.get("hub.mode") == "subscribe"
-        and params.get("hub.verify_token") == settings.webhook_verify_token
-    ):
-        return PlainTextResponse(params.get("hub.challenge", ""))
-    raise HTTPException(status_code=403, detail="Forbidden")
-
-
 @router.get("/debug/webhook-log")
 async def webhook_log():
     return {"recent_payloads": _recent_payloads[-10:]}
@@ -44,12 +20,17 @@ async def webhook_log():
 
 @router.post("/webhook")
 async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
-    body = await request.json()
-    _recent_payloads.append(body)
+    form = await request.form()
+    payload = dict(form)
+    _recent_payloads.append(payload)
     if len(_recent_payloads) > 20:
         _recent_payloads.pop(0)
-    logger.info(f"Webhook received: {body}")
-    msg_id, phone, text = _extract(body)
+    logger.info(f"Webhook received: {payload}")
+
+    msg_id = form.get("MessageSid")
+    from_field = form.get("From", "")
+    phone = from_field.replace("whatsapp:", "")
+    text = form.get("Body")
 
     if not msg_id or not phone or not text:
         return {"status": "ok"}

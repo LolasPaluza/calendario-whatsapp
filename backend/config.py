@@ -4,9 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     database_url: str
     gemini_api_key: str
-    whatsapp_phone_number_id: str
-    whatsapp_access_token: str
-    webhook_verify_token: str
+    twilio_account_sid: str
+    twilio_auth_token: str
+    twilio_from_number: str  # e.g. "whatsapp:+14155238886"
     api_key: str
     whatsapp_user_phone: str
 
