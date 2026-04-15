@@ -12,7 +12,7 @@ import services.tools as tool_funcs
 BRT = ZoneInfo("America/Sao_Paulo")
 logger = logging.getLogger(__name__)
 
-HISTORY_LIMIT = 10
+HISTORY_LIMIT = 20  # 20 rows = 10 complete turns (user + model per turn)
 
 SYSTEM_PROMPT_TEMPLATE = (
     "Você é um assistente de agenda pessoal via WhatsApp.\n"

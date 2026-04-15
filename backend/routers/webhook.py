@@ -9,6 +9,7 @@ from services import whatsapp
 router = APIRouter()
 
 _processed_message_ids: set[str] = set()
+_agent = CalendarAgent()
 
 
 def _extract(body: dict) -> tuple[str | None, str | None, str | None]:
@@ -47,7 +48,6 @@ async def receive_message(request: Request, db: AsyncSession = Depends(get_db)):
     if len(_processed_message_ids) > 1000:
         _processed_message_ids.clear()
 
-    agent = CalendarAgent()
-    reply = await agent.run(phone=phone, text=text, db=db)
+    reply = await _agent.run(phone=phone, text=text, db=db)
     await whatsapp.send_message(phone, reply)
     return {"status": "ok"}
